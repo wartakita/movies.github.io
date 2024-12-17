@@ -44,17 +44,15 @@ function fetchMovieDetails(movieId) {
         .then(data => {
             // Menampilkan judul film
             document.getElementById('movieTitle').style.display = 'block';
-            document.getElementById('titleText').innerText = data.title;
+            document.getElementById('movieTitleText').innerText = data.title;
 
-            // Menampilkan rating film
-            document.getElementById('movieRating').style.display = 'block';
-            document.getElementById('ratingText').innerText = `${data.vote_average} / 10`;
-
-            // Menampilkan deskripsi film
+            // Pastikan deskripsi film ada dalam data API
             if (data.overview) {
+                // Menampilkan deskripsi film
                 document.getElementById('movieDescription').style.display = 'block';
                 document.getElementById('movieDescText').innerText = data.overview;
             } else {
+                // Jika tidak ada deskripsi, tampilkan pesan default
                 document.getElementById('movieDescription').style.display = 'block';
                 document.getElementById('movieDescText').innerText = 'Deskripsi tidak tersedia.';
             }
@@ -83,6 +81,7 @@ function fetchMovieDetails(movieId) {
             fetch(`https://api.themoviedb.org/3/movie/${movieId}/credits?api_key=${apiKey}&language=en`)
                 .then(response => response.json())
                 .then(creditsData => {
+                    // Menampilkan produser jika ada
                     const producer = creditsData.crew.find(person => person.job === "Producer");
                     if (producer) {
                         document.getElementById('producerText').innerText = producer.name;
@@ -97,6 +96,23 @@ function fetchMovieDetails(movieId) {
             // Menampilkan genre film
             document.getElementById('movieGenres').style.display = 'block';
             document.getElementById('genreList').innerText = data.genres.map(genre => genre.name).join(', ');
+
+            // Jika video type adalah serial, ambil data episode
+            const videoType = document.getElementById('videoType').value;
+            if (videoType === 'series') {
+                const season = document.getElementById('season').value;
+                const episode = document.getElementById('episode').value;
+                if (season && episode) {
+                    fetch(`https://api.themoviedb.org/3/tv/${movieId}/season/${season}/episode/${episode}?api_key=${apiKey}&language=en`)
+                        .then(response => response.json())
+                        .then(episodeData => {
+                            // Menampilkan judul episode
+                            document.getElementById('episodeTitle').style.display = 'block';
+                            document.getElementById('episodeTitleText').innerText = `${episodeData.name} - Season ${season}, Episode ${episode}`;
+                        })
+                        .catch(error => console.log('Error fetching episode details:', error));
+                }
+            }
         })
         .catch(error => console.log(error));
 }
