@@ -1,6 +1,6 @@
 const API_KEY = 'c542b4951cfcd4ca4e97f3184f866b70';
 const BASE_URL = 'https://api.themoviedb.org/3';
-const IMAGE_URL = 'https://image.tmdb.org/t/p/w500';
+const IMAGE_URL = 'https://image.tmdb.org/t/p/w1280';
 const moviesContainer = document.getElementById('movies-container');
 const searchInput = document.getElementById('search');
 const categorySelect = document.getElementById('category');
@@ -28,12 +28,12 @@ async function fetchMovies(url) {
     setLoading(true);
     try {
         const response = await fetch(url);
-        if (!response.ok) throw new Error(`Error: ${response.status}`);
+        if (!response.ok) throw new Error(`Error: ${response.status} - ${response.statusText}`);
         const data = await response.json();
         displayMovies(data.results);
     } catch (error) {
         console.error(error);
-        moviesContainer.innerHTML = '<p>Failed to load movies. Please try again later.</p>';
+        moviesContainer.innerHTML = `<p>${error.message}. Please try again later.</p>`;
     } finally {
         setLoading(false);
     }
@@ -55,7 +55,7 @@ function displayMovies(movies) {
 
         movieCard.innerHTML = `
                     <span class="label"><i class="${iconClass}"></i> ${mediaType}</span>
-                    <img src="${movieImage}" alt="${movie.title || movie.name}">
+                    <img src="${movieImage}" alt="${movie.title || movie.name || 'Movie Poster'}">
                     <h3>${movie.title || movie.name}</h3>
                     <div class="rating">${movie.vote_average ? (movie.vote_average.toFixed(1) + '/10 ⭐') : 'No Rating'}</div>
                 `;
@@ -100,10 +100,15 @@ function closeIframe() {
 function updateIframe() {
     if (!currentMovie || currentMovie.media_type !== 'tv') return;
 
-    const seasonNumber = parseInt(seasonInput.value, 10) || 1;
-    const episodeNumber = parseInt(episodeInput.value, 10) || 1;
-    const tmdbId = currentMovie.id;
+    const seasonNumber = parseInt(seasonInput.value, 10);
+    const episodeNumber = parseInt(episodeInput.value, 10);
 
+    if (isNaN(seasonNumber) || seasonNumber < 1 || isNaN(episodeNumber) || episodeNumber < 1) {
+        alert('Season and episode must be positive numbers.');
+        return;
+    }
+
+    const tmdbId = currentMovie.id;
     const iframeSrc = `https://player.autoembed.cc/embed/tv/${tmdbId}/${seasonNumber}/${episodeNumber}`;
     iframePlayer.src = iframeSrc;
 }
@@ -146,3 +151,23 @@ function loadMovies() {
 }
 
 loadMovies();
+
+// Tombol Scroll ke Atas
+const scrollToTopButton = document.getElementById('scrollToTop');
+
+// Tampilkan tombol saat pengguna scroll ke bawah
+window.addEventListener('scroll', () => {
+    if (window.scrollY > 300) {
+        scrollToTopButton.style.display = 'block';
+    } else {
+        scrollToTopButton.style.display = 'none';
+    }
+});
+
+// Fungsi untuk scroll ke atas
+scrollToTopButton.addEventListener('click', () => {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
+});
