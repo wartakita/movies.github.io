@@ -150,13 +150,17 @@ movieList.addEventListener('click', (event) => {
     }
 });
 
-toggleDarkMode.addEventListener('click', toggleDarkModeFunction);
+toggleDarkMode.addEventListener('click', () => {
+    console.log('Toggle Dark Mode clicked');
+    toggleDarkModeFunction();
+});
 
 closePlayerButton.addEventListener('click', closePlayer);
 
 playEpisodeButton.addEventListener('click', playEpisode);
 
 loadMovies.addEventListener('click', () => {
+    console.log('Load Movies clicked');
     currentMode = 'movie';
     sectionTitle.textContent = 'Popular Movies';
     genreFilter.innerHTML = '<option value="">Filter by Genre</option>';
@@ -165,6 +169,7 @@ loadMovies.addEventListener('click', () => {
 });
 
 loadTV.addEventListener('click', () => {
+    console.log('Load TV clicked');
     currentMode = 'tv';
     sectionTitle.textContent = 'Popular TV Series';
     genreFilter.innerHTML = '<option value="">Filter by Genre</option>';
