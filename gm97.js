@@ -1,8 +1,6 @@
 const API_KEY = 'c542b4951cfcd4ca4e97f3184f866b70';
 const BASE_URL = 'https://api.themoviedb.org/3';
 const IMG_URL = 'https://image.tmdb.org/t/p/w500';
-const moviesTab = document.getElementById('movies-tab');
-const tvTab = document.getElementById('tv-tab');
 const searchInput = document.getElementById('search-input');
 const prevButton = document.getElementById('prev-button');
 const nextButton = document.getElementById('next-button');
@@ -23,7 +21,7 @@ const scrollToTopButton = document.getElementById('scroll-to-top');
 const state = {
     currentPage: 1,
     totalPages: 1,
-    currentView: 'movies', // 'movies', 'tv', or 'search'
+    currentView: 'popular-movies', // 'popular-movies', 'upcoming-movies', 'now-playing-movies', 'top-rated-movies', 'popular-tv', 'airing-today', 'on-tv', 'top-rated-tv', or 'search'
     currentQuery: '', // Holds the current search query
     currentTMDBId: null,
     currentType: null,
@@ -34,8 +32,14 @@ const state = {
 function updateState(newState) {
     Object.assign(state, newState);
     updatePagination(state.currentPage, state.totalPages);
-    if (state.currentView === 'movies') fetchMovies(state.currentPage);
-    else if (state.currentView === 'tv') fetchTVSeries(state.currentPage);
+    if (state.currentView === 'popular-movies') fetchPopularMovies(state.currentPage);
+    else if (state.currentView === 'upcoming-movies') fetchUpcomingMovies(state.currentPage);
+    else if (state.currentView === 'now-playing-movies') fetchNowPlayingMovies(state.currentPage);
+    else if (state.currentView === 'top-rated-movies') fetchTopRatedMovies(state.currentPage);
+    else if (state.currentView === 'popular-tv') fetchPopularTVSeries(state.currentPage);
+    else if (state.currentView === 'airing-today') fetchAiringToday(state.currentPage);
+    else if (state.currentView === 'on-tv') fetchOnTV(state.currentPage);
+    else if (state.currentView === 'top-rated-tv') fetchTopRatedTVSeries(state.currentPage);
     else if (state.currentView === 'search') fetchSearchResults(state.currentPage);
 }
 
@@ -102,20 +106,74 @@ async function fetchGenres() {
     }
 }
 
-// Display movies
-async function fetchMovies(page = 1) {
+// Display popular movies
+async function fetchPopularMovies(page = 1) {
     const data = await fetchData('/movie/popular', page);
     if (data) {
-        renderContent(data.results, 'movies');
+        renderContent(data.results, 'popular-movies');
         updatePagination(data.page, data.total_pages);
     }
 }
 
-// Display TV series
-async function fetchTVSeries(page = 1) {
+// Display upcoming movies
+async function fetchUpcomingMovies(page = 1) {
+    const data = await fetchData('/movie/upcoming', page);
+    if (data) {
+        renderContent(data.results, 'upcoming-movies');
+        updatePagination(data.page, data.total_pages);
+    }
+}
+
+// Display now playing movies
+async function fetchNowPlayingMovies(page = 1) {
+    const data = await fetchData('/movie/now_playing', page);
+    if (data) {
+        renderContent(data.results, 'now-playing-movies');
+        updatePagination(data.page, data.total_pages);
+    }
+}
+
+// Display top rated movies
+async function fetchTopRatedMovies(page = 1) {
+    const data = await fetchData('/movie/top_rated', page);
+    if (data) {
+        renderContent(data.results, 'top-rated-movies');
+        updatePagination(data.page, data.total_pages);
+    }
+}
+
+// Display popular TV series
+async function fetchPopularTVSeries(page = 1) {
     const data = await fetchData('/tv/popular', page);
     if (data) {
-        renderContent(data.results, 'tv');
+        renderContent(data.results, 'popular-tv');
+        updatePagination(data.page, data.total_pages);
+    }
+}
+
+// Display airing today TV series
+async function fetchAiringToday(page = 1) {
+    const data = await fetchData('/tv/airing_today', page);
+    if (data) {
+        renderContent(data.results, 'airing-today');
+        updatePagination(data.page, data.total_pages);
+    }
+}
+
+// Display on TV TV series
+async function fetchOnTV(page = 1) {
+    const data = await fetchData('/tv/on_the_air', page);
+    if (data) {
+        renderContent(data.results, 'on-tv');
+        updatePagination(data.page, data.total_pages);
+    }
+}
+
+// Display top rated TV series
+async function fetchTopRatedTVSeries(page = 1) {
+    const data = await fetchData('/tv/top_rated', page);
+    if (data) {
+        renderContent(data.results, 'top-rated-tv');
         updatePagination(data.page, data.total_pages);
     }
 }
@@ -184,12 +242,12 @@ document.getElementById('movies-list').addEventListener('click', (e) => {
 function openPlayer(title, synopsis, tmdbId, type) {
     playerTitle.textContent = title;
     playerSynopsis.textContent = synopsis;
-    if (type === 'movies') {
+    if (type === 'popular-movies' || type === 'upcoming-movies' || type === 'now-playing-movies' || type === 'top-rated-movies') {
         playerIframe.src = `https://player.autoembed.cc/embed/movie/${tmdbId}`;
-        tvSeriesForm.style.display = 'none';
-    } else if (type === 'tv') {
+        tvSeriesForm.style.display = 'none'; // Hide TV Series form for movies
+    } else if (type === 'popular-tv' || type === 'airing-today' || type === 'on-tv' || type === 'top-rated-tv') {
         playerIframe.src = `https://player.autoembed.cc/embed/tv/${tmdbId}/1/1`;
-        tvSeriesForm.style.display = 'block';
+        tvSeriesForm.style.display = 'block'; // Show TV Series form for TV Series
     }
     floatingPlayer.style.display = 'flex';
 }
@@ -202,6 +260,7 @@ closePlayerButton.addEventListener('click', () => {
     playerSynopsis.textContent = '';
     state.currentTMDBId = null;
     state.currentType = null;
+    tvSeriesForm.style.display = 'none'; // Hide TV Series form when player is closed
 });
 
 // Handle TV Series form submission
@@ -209,7 +268,11 @@ playEpisodeButton.addEventListener('click', () => {
     const seasonNumber = seasonNumberInput.value.trim();
     const episodeNumber = episodeNumberInput.value.trim();
     if (seasonNumber && episodeNumber) {
-        playerIframe.src = `https://player.autoembed.cc/embed/tv/${state.currentTMDBId}/${seasonNumber}/${episodeNumber}`;
+        if (!isNaN(seasonNumber) && !isNaN(episodeNumber)) {
+            playerIframe.src = `https://player.autoembed.cc/embed/tv/${state.currentTMDBId}/${seasonNumber}/${episodeNumber}`;
+        } else {
+            alert('Please enter valid season and episode numbers.');
+        }
     } else {
         alert('Please enter both season and episode numbers.');
     }
@@ -233,16 +296,58 @@ nextButton.addEventListener('click', () => {
 });
 
 // Tab switching
-moviesTab.addEventListener('click', () => {
+document.getElementById('popular-movies-tab').addEventListener('click', () => {
     updateState({
-        currentView: 'movies',
+        currentView: 'popular-movies',
         currentPage: 1
     });
 });
 
-tvTab.addEventListener('click', () => {
+document.getElementById('upcoming-movies-tab').addEventListener('click', () => {
     updateState({
-        currentView: 'tv',
+        currentView: 'upcoming-movies',
+        currentPage: 1
+    });
+});
+
+document.getElementById('now-playing-movies-tab').addEventListener('click', () => {
+    updateState({
+        currentView: 'now-playing-movies',
+        currentPage: 1
+    });
+});
+
+document.getElementById('top-rated-movies-tab').addEventListener('click', () => {
+    updateState({
+        currentView: 'top-rated-movies',
+        currentPage: 1
+    });
+});
+
+document.getElementById('popular-tv-tab').addEventListener('click', () => {
+    updateState({
+        currentView: 'popular-tv',
+        currentPage: 1
+    });
+});
+
+document.getElementById('airing-today-tab').addEventListener('click', () => {
+    updateState({
+        currentView: 'airing-today',
+        currentPage: 1
+    });
+});
+
+document.getElementById('on-tv-tab').addEventListener('click', () => {
+    updateState({
+        currentView: 'on-tv',
+        currentPage: 1
+    });
+});
+
+document.getElementById('top-rated-tv-tab').addEventListener('click', () => {
+    updateState({
+        currentView: 'top-rated-tv',
         currentPage: 1
     });
 });
@@ -258,7 +363,7 @@ searchInput.addEventListener('input', (e) => {
         });
     } else {
         updateState({
-            currentView: 'movies',
+            currentView: 'popular-movies',
             currentQuery: '',
             currentPage: 1
         });
@@ -286,61 +391,9 @@ function toggleScrollToTopButton() {
 window.addEventListener('scroll', toggleScrollToTopButton);
 scrollToTopButton.addEventListener('click', scrollToTop);
 
-// Fetch trending movies for carousel
-async function fetchTrendingMovies() {
-    const data = await fetchData('/trending/movie/day', 1);
-    if (data && data.results) {
-        renderCarousel(data.results);
-    }
-}
-
-// Render carousel
-function renderCarousel(items) {
-    const carouselIndicators = document.getElementById('carousel-indicators');
-    const carouselInner = document.getElementById('carousel-inner');
-    carouselIndicators.innerHTML = '';
-    carouselInner.innerHTML = '';
-
-    items.slice(0, 10).forEach((item, index) => {
-        const title = item.title || item.name || "No Title Available";
-        const poster = item.poster_path ?
-            `${IMG_URL}${item.poster_path}` :
-            'https://via.placeholder.com/200x300?text=No+Image';
-        const synopsis = item.overview || "No synopsis available";
-
-        const indicator = document.createElement('button');
-        indicator.type = 'button';
-        indicator.setAttribute('data-bs-target', '#carouselExampleIndicators');
-        indicator.setAttribute('data-bs-slide-to', index);
-        indicator.setAttribute('aria-label', `Slide ${index + 1}`);
-        if (index === 0) {
-            indicator.classList.add('active');
-            indicator.setAttribute('aria-current', 'true');
-        }
-
-        const carouselItem = document.createElement('div');
-        carouselItem.classList.add('carousel-item');
-        if (index === 0) {
-            carouselItem.classList.add('active');
-        }
-
-        carouselItem.innerHTML = `
-                    <img src="${poster}" class="d-block w-100" alt="${title}">
-                    <div class="carousel-caption d-none d-md-block">
-                        <h5>${title}</h5>
-                        <p>${synopsis}</p>
-                    </div>
-                `;
-
-        carouselIndicators.appendChild(indicator);
-        carouselInner.appendChild(carouselItem);
-    });
-}
-
 // Initial load
 fetchGenres();
-fetchTrendingMovies();
 updateState({
-    currentView: 'movies',
+    currentView: 'popular-movies',
     currentPage: 1
 });
