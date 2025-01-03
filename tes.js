@@ -69,7 +69,6 @@ function displayItems(items, totalPages) {
                             <div class="card-body">
                                 <h5 class="card-title">${title}</h5>
                                 <div class="mb-2">${genreLabels}</div>
-                                <button class="btn btn-secondary btn-sm mt-2" data-id="${item.id}" data-title="${title}" data-synopsis="${item.overview}">Watch Trailer</button>
                             </div>
                         </div>
                     </div>`;
@@ -116,7 +115,7 @@ function openPlayer(title, synopsis, id) {
     playerSynopsis.textContent = synopsis;
     currentItemId = id;
     playerForm.style.display = currentMode === 'tv' ? 'block' : 'none';
-    playerIframe.src = `https://www.youtube.com/embed/${id}`;
+    playerIframe.src = currentMode === 'movie' ? `https://vidsrc.cc/v2/embed/movie/${id}` : '';
     floatingPlayer.style.display = 'block';
 }
 
@@ -134,7 +133,7 @@ function playEpisode() {
         const seasonNum = parseInt(season, 10);
         const episodeNum = parseInt(episode, 10);
         if (!isNaN(seasonNum) && !isNaN(episodeNum) && seasonNum > 0 && episodeNum > 0) {
-            playerIframe.src = `https://player.autoembed.cc/embed/tv/${currentItemId}/${seasonNum}/${episodeNum}`;
+            playerIframe.src = `https://vidsrc.cc/v2/embed/tv/${currentItemId}/${seasonNum}/${episodeNum}`;
         } else {
             alert('Please enter valid season and episode numbers.');
         }
@@ -143,21 +142,11 @@ function playEpisode() {
     }
 }
 
-async function fetchTrailer(id) {
-    const url = `${BASE_URL}${currentMode}/${id}/videos?api_key=${API_KEY}`;
-    try {
-        const response = await fetch(url);
-        const data = await response.json();
-        const trailer = data.results.find(video => video.type === 'Trailer' && video.site === 'YouTube');
-        if (trailer) {
-            openPlayer(trailer.name, '', trailer.key);
-        } else {
-            alert('No trailer available for this item.');
-        }
-    } catch (error) {
-        console.error('Error fetching trailer:', error);
-        alert('Failed to fetch trailer. Please try again later.');
-    }
+function scrollToTop() {
+    window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+    });
 }
 
 movieList.addEventListener('click', (event) => {
@@ -167,12 +156,6 @@ movieList.addEventListener('click', (event) => {
         const synopsis = card.getAttribute('data-synopsis');
         const id = card.getAttribute('data-id');
         openPlayer(title, synopsis, id);
-    }
-
-    const trailerButton = event.target.closest('.btn-secondary');
-    if (trailerButton) {
-        const id = trailerButton.getAttribute('data-id');
-        fetchTrailer(id);
     }
 });
 
@@ -245,13 +228,6 @@ function scrollFunction() {
     } else {
         scrollToTopButton.style.display = "none";
     }
-}
-
-function scrollToTop() {
-    window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-    });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
