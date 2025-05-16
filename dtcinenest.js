@@ -13,6 +13,7 @@ const searchInput = document.getElementById("searchInput");
 const genreSelect = document.getElementById("genreSelect");
 const contentTypeSelect = document.getElementById("contentType");
 const darkModeToggle = document.getElementById("darkModeToggle");
+const joinTelegramBtn = document.getElementById("joinTelegramBtn");
 
 // Modal Elements
 const seasonInput = document.getElementById("seasonInput");
@@ -25,6 +26,8 @@ const modalHeader = document.getElementById("modalHeader");
 const modalOverview = document.getElementById("modalOverview");
 const modalDetails = document.getElementById("modalDetails");
 const modalPlayer = document.getElementById("modalPlayer");
+const modalCloseBtn = document.getElementById("modalCloseBtn");
+const trailerBtn = document.getElementById("trailerBtn");
 
 // State variables
 let currentPage = 1;
@@ -34,6 +37,9 @@ let currentGenre = "";
 let currentContentType = "movie"; // "movie" or "tv"
 let isSearchMode = false;
 let genreMap = {};
+let trailerKey = null;
+let isTrailerPlaying = false;
+let currentItem = null;
 
 // Debounce function
 function debounce(func, delay) {
@@ -311,8 +317,42 @@ darkModeToggle.addEventListener("click", () => {
     localStorage.setItem("darkMode", isLightMode ? "enabled" : "disabled");
 });
 
+// Join Telegram button event
+joinTelegramBtn.addEventListener("click", () => {
+    window.open("https://t.me/joinchat/ExampleInviteLink", "_blank", "noopener");
+});
+
+// Fetch trailer key from TMDB API
+async function fetchTrailer(id, type) {
+    try {
+        const res = await fetch(`${BASE_URL}/${type}/${id}/videos?api_key=${API_KEY}&language=en-US`);
+        const data = await res.json();
+        if (data.results && data.results.length > 0) {
+            // Prefer official trailers from YouTube
+            const trailer = data.results.find(
+                (vid) =>
+                vid.site === "YouTube" &&
+                vid.type === "Trailer" &&
+                vid.official === true
+            ) || data.results.find(
+                (vid) =>
+                vid.site === "YouTube" &&
+                vid.type === "Trailer"
+            );
+            if (trailer) {
+                return trailer.key;
+            }
+        }
+        return null;
+    } catch (error) {
+        console.error("Error fetching trailer:", error);
+        return null;
+    }
+}
+
 // Modal open function
-function openModal(item) {
+async function openModal(item) {
+    currentItem = item;
     modalHeader.textContent = item.title || item.name || "Untitled";
     modalOverview.textContent = item.overview || "No description available.";
     const rating = item.vote_average ? item.vote_average.toFixed(1) : "N/A";
@@ -320,14 +360,28 @@ function openModal(item) {
     const genres = (item.genre_ids || [])
         .map((id) => genreMap[`${currentContentType}-${id}`])
         .filter(Boolean)
-        .join(", ") || "Unknown";
-
+    // Set detail modal
     modalDetails.innerHTML = `
         <p>⭐ Rating: ${rating}</p>
         <p>📅 Release Date: ${releaseDate}</p>
         <p>🎭 Genres: ${genres}</p>
       `;
 
+    // Reset trailer state
+    trailerKey = null;
+    isTrailerPlaying = false;
+    trailerBtn.textContent = "Tonton Trailer";
+    trailerBtn.disabled = true;
+
+    // Fetch trailer key
+    trailerKey = await fetchTrailer(item.id, currentContentType);
+    if (trailerKey) {
+        trailerBtn.disabled = false;
+    } else {
+        trailerBtn.disabled = true;
+    }
+
+    // Setup player iframe and season/episode controls
     if (currentContentType === "tv") {
         seasonEpisodeControls.style.display = "flex";
 
@@ -346,30 +400,75 @@ function openModal(item) {
         modalPlayer.src = `https://letsembed.cc/embed/movie/?id=${item.id}`;
     }
 
+    // Show modal
     modalOverlay.style.display = "flex";
     modalOverlay.focus();
     document.body.style.overflow = "hidden";
-
-    playEpisodeBtn.onclick = () => {
-        const s = parseInt(seasonInput.value || "1");
-        const e = parseInt(episodeInput.value || "1");
-        if (!isNaN(s) && !isNaN(e) && s > 0 && e > 0) {
-            modalPlayer.src = `https://letsembed.cc/embed/tv/?id=${item.id}/${s}/${e}`;
-            localStorage.setItem(`tv-${item.id}`, JSON.stringify({
-                season: s,
-                episode: e
-            }));
-            lastWatchedInfo.textContent = `Last watched: Season ${s} Episode ${e}`;
-        }
-    };
 }
+
+// Trailer button click handler
+trailerBtn.addEventListener("click", () => {
+    if (!trailerKey) return;
+
+    if (!isTrailerPlaying) {
+        // Play trailer from YouTube embed
+        modalPlayer.src = `https://www.youtube.com/embed/${trailerKey}?autoplay=1&rel=0`;
+        trailerBtn.textContent = "Tutup Trailer";
+        isTrailerPlaying = true;
+        // Hide season/episode controls while trailer playing
+        seasonEpisodeControls.style.display = "none";
+        lastWatchedInfo.style.display = "none";
+    } else {
+        // Stop trailer and restore original player
+        if (currentContentType === "tv") {
+            const s = parseInt(seasonInput.value || "1");
+            const e = parseInt(episodeInput.value || "1");
+            modalPlayer.src = `https://letsembed.cc/embed/tv/?id=${currentItem.id}/${s}/${e}`;
+            seasonEpisodeControls.style.display = "flex";
+            lastWatchedInfo.style.display = "inline";
+        } else {
+            modalPlayer.src = `https://letsembed.cc/embed/movie/?id=${currentItem.id}`;
+            seasonEpisodeControls.style.display = "none";
+            lastWatchedInfo.style.display = "none";
+        }
+        trailerBtn.textContent = "Tonton Trailer";
+        isTrailerPlaying = false;
+    }
+});
+
+// Play episode button handler
+playEpisodeBtn.onclick = () => {
+    const s = parseInt(seasonInput.value || "1");
+    const e = parseInt(episodeInput.value || "1");
+    if (!isNaN(s) && !isNaN(e) && s > 0 && e > 0) {
+        modalPlayer.src = `https://letsembed.cc/embed/tv/?id=${currentItem.id}/${s}/${e}`;
+        localStorage.setItem(`tv-${currentItem.id}`, JSON.stringify({
+            season: s,
+            episode: e
+        }));
+        lastWatchedInfo.textContent = `Last watched: Season ${s} Episode ${e}`;
+        // If trailer was playing, stop it
+        if (isTrailerPlaying) {
+            trailerBtn.textContent = "Tonton Trailer";
+            isTrailerPlaying = false;
+            seasonEpisodeControls.style.display = "flex";
+            lastWatchedInfo.style.display = "inline";
+        }
+    }
+};
 
 // Modal close function
 function closeModal() {
     modalOverlay.style.display = "none";
     modalPlayer.src = "";
+    trailerBtn.textContent = "Tonton Trailer";
+    trailerBtn.disabled = true;
+    isTrailerPlaying = false;
     // Restore background scroll
     document.body.style.overflow = "";
+    // Reset last watched info display
+    lastWatchedInfo.style.display = "inline";
+    seasonEpisodeControls.style.display = currentContentType === "tv" ? "flex" : "none";
 }
 
 // Close modal on close button click
